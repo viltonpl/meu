@@ -1,168 +1,148 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mensagem Especial</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f9d1d1;
-            font-family: Arial, sans-serif;
-            overflow: hidden; /* Impede a rolagem da página */
-        }
-        h1 {
-            font-size: 3rem;
-            color: #e74c3c;
-            text-align: center;
-            animation: pulse 2s infinite;
-        }
-        .image-container {
-            display: flex;
-            gap: 20px; /* Espaço entre as imagens */
-            margin-top: 20px;
-        }
-        img {
-            width: 150px; /* Tamanho das imagens */
-            height: auto;
-            border-radius: 10px; /* Borda arredondada */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra */
-            transition: transform 0.3s ease, box-shadow 0.3s ease; /* Transição suave */
-            cursor: pointer; /* Mostra que a imagem é clicável */
-        }
-        img:hover {
-            transform: scale(1.1); /* Aumenta a imagem ao passar o mouse */
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Sombra mais intensa */
-        }
-        .heart {
-            position: absolute;
-            font-size: 2rem;
-            user-select: none; /* Impede que o texto seja selecionado */
-            color: #e74c3c;
-        }
-        .click-counter {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            font-size: 1.5rem;
-            color: #e74c3c;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 10px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        .big-heart {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 50rem;
-            color: #e74c3c;
-            opacity: 0;
-            animation: growHeart 2s ease-out forwards;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .big-heart-text {
-            font-size: 5rem;
-            color: white;
-            position: absolute;
-            opacity: 0;
-            animation: fadeInText 1s ease-out 2s forwards; /* Aparece após o coração crescer */
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-        @keyframes growHeart {
-            0% {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(0);
-            }
-            100% {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1);
-            }
-        }
-        @keyframes fadeInText {
-            0% {
-                opacity: 0;
-            }
-            100% {
-                opacity: 1;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Pong - 2 Jogadores (com Placar)</title>
+  <style>
+    canvas {
+      background: #000;
+      display: block;
+      margin: 0 auto;
+      border: 3px solid #fff;
+    }
+    body {
+      background: #111;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+    }
+    #score {
+      font-size: 32px;
+      margin: 20px;
+    }
+  </style>
 </head>
 <body>
-    <h1>Eu te amo, Vitória Maria! ❤️</h1>
-    <div class="click-counter">Cliques: 0</div>
-    <div class="image-container">
-        <img src="20250124_175728.jpg" alt="Imagem especial" onclick="handleClick(event)">
-        <img src="20250119_201554.jpg" alt="Imagem especial" onclick="handleClick(event)">
-        <img src="20250118_192904.jpg" alt="Imagem especial" onclick="handleClick(event)">
-    </div>
+  <h1>Pong - Player 1: Teclado (W/S) | Player 2: Joystick</h1>
+  <div id="score">0 : 0</div>
+  <canvas id="pong" width="800" height="500"></canvas>
 
-    <script>
-        let clickCount = 0; // Contador de cliques
-        const clickCounter = document.querySelector('.click-counter');
+  <script>
+    const canvas = document.getElementById("pong");
+    const ctx = canvas.getContext("2d");
+    const scoreDisplay = document.getElementById("score");
 
-        function handleClick(event) {
-            // Incrementa o contador de cliques
-            clickCount++;
-            clickCounter.textContent = `Cliques: ${clickCount}`;
+    const paddleWidth = 10, paddleHeight = 100;
+    let player1 = { x: 10, y: canvas.height / 2 - paddleHeight / 2, speed: 5 };
+    let player2 = { x: canvas.width - paddleWidth - 10, y: canvas.height / 2 - paddleHeight / 2, speed: 5 };
+    let ball = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: 8,
+      speed: 5,
+      dx: 5,
+      dy: 5
+    };
 
-            // Cria 10 corações por clique
-            createHearts(event, 10);
+    let keys = {};
+    let score1 = 0;
+    let score2 = 0;
 
-            // Verifica se atingiu 100 cliques
-            if (clickCount === 10) {
-                createBigHeart();
-            }
+    document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
+    document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+
+    function drawRect(x, y, w, h, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+    }
+
+    function drawCircle(x, y, r, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2, false);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function resetBall(scoredBy) {
+      if (scoredBy === "player1") score1++;
+      if (scoredBy === "player2") score2++;
+      updateScore();
+      ball.x = canvas.width / 2;
+      ball.y = canvas.height / 2;
+      ball.dx = -ball.dx;
+      ball.dy = (Math.random() * 4 - 2);
+    }
+
+    function updateScore() {
+      scoreDisplay.textContent = `${score1} : ${score2}`;
+    }
+
+    function update() {
+      // Player 1: teclado
+      if (keys["w"] && player1.y > 0) player1.y -= player1.speed;
+      if (keys["s"] && player1.y + paddleHeight < canvas.height) player1.y += player1.speed;
+
+      // Player 2: Joystick
+      const gamepads = navigator.getGamepads();
+      const gp = gamepads[0];
+      if (gp) {
+        const axisY = gp.axes[1];
+        if (Math.abs(axisY) > 0.1) {
+          player2.y += axisY * player2.speed * 1.5;
+          player2.y = Math.max(0, Math.min(canvas.height - paddleHeight, player2.y));
         }
+      }
 
-        function createHearts(event, numberOfHearts) {
-            for (let i = 0; i < numberOfHearts; i++) {
-                // Cria um novo elemento de coração
-                const heart = document.createElement('div');
-                heart.classList.add('heart');
-                heart.innerHTML = '❤️';
+      // Atualiza bola
+      ball.x += ball.dx;
+      ball.y += ball.dy;
 
-                // Posiciona o coração no local do clique com um pequeno deslocamento aleatório
-                const x = event.clientX + (Math.random() - 0.5) * 50; // Deslocamento horizontal aleatório
-                const y = event.clientY + (Math.random() - 0.5) * 50; // Deslocamento vertical aleatório
-                heart.style.left = `${x}px`;
-                heart.style.top = `${y}px`;
+      // Colisão com topo/baixo
+      if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+        ball.dy = -ball.dy;
+      }
 
-                // Adiciona o coração ao corpo do documento
-                document.body.appendChild(heart);
-            }
-        }
+      // Colisão com paddles
+      if (
+        (ball.x - ball.radius < player1.x + paddleWidth &&
+          ball.y > player1.y && ball.y < player1.y + paddleHeight)
+        ||
+        (ball.x + ball.radius > player2.x &&
+          ball.y > player2.y && ball.y < player2.y + paddleHeight)
+      ) {
+        ball.dx = -ball.dx;
+      }
 
-        function createBigHeart() {
-            // Cria um coração enorme
-            const bigHeart = document.createElement('div');
-            bigHeart.classList.add('big-heart');
-            bigHeart.innerHTML = '❤️';
+      // Gol para Player 2
+      if (ball.x + ball.radius < 0) {
+        resetBall("player2");
+      }
 
-            // Cria o texto "timamu" dentro do coração
-            const bigHeartText = document.createElement('div');
-            bigHeartText.classList.add('big-heart-text');
-            bigHeartText.textContent = 'timamu';
+      // Gol para Player 1
+      if (ball.x - ball.radius > canvas.width) {
+        resetBall("player1");
+      }
+    }
 
-            // Adiciona o texto ao coração
-            bigHeart.appendChild(bigHeartText);
+    function draw() {
+      drawRect(0, 0, canvas.width, canvas.height, "#000"); // fundo
+      drawRect(player1.x, player1.y, paddleWidth, paddleHeight, "#fff");
+      drawRect(player2.x, player2.y, paddleWidth, paddleHeight, "#fff");
+      drawCircle(ball.x, ball.y, ball.radius, "#fff");
+    }
 
-            // Adiciona o coração enorme ao corpo do documento
-            document.body.appendChild(bigHeart);
-        }
-    </script>
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    window.addEventListener("gamepadconnected", (e) => {
+      alert("Joystick conectado: " + e.gamepad.id);
+    });
+
+    loop();
+  </script>
 </body>
 </html>
