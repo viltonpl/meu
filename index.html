@@ -2,135 +2,234 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Mini Bomberman</title>
+  <title>Frogger Multiplayer</title>
   <style>
-    canvas {
-      display: block;
-      margin: 20px auto;
-      background: #000;
-      border: 3px solid #fff;
-    }
     body {
       background: #222;
       color: #fff;
-      font-family: monospace;
+      font-family: sans-serif;
       text-align: center;
+    }
+
+    canvas {
+      background: #111;
+      border: 3px solid #fff;
+      display: block;
+      margin: 10px auto;
+    }
+
+    #score {
+      font-size: 20px;
+      margin: 10px;
+    }
+
+    #gameOver {
+      font-size: 26px;
+      margin-top: 20px;
+      color: yellow;
     }
   </style>
 </head>
 <body>
-  <h1>Mini Bomberman - Use setas + Espaço para bomba</h1>
-  <canvas id="game" width="480" height="480"></canvas>
+  <h1>🐸 Frogger Multiplayer - Troncos e Vidas!</h1>
+  <div id="score">Player 1: 0 ❤️3 | Player 2: 0 ❤️3</div>
+  <canvas id="game" width="400" height="480"></canvas>
+  <div id="gameOver"></div>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
+    const TILE = 40;
+    const ROWS = 12;
+    const COLS = 10;
 
-    const TILE = 40; // tamanho de cada célula
-    const ROWS = 12, COLS = 12;
+    const frogs = [
+      { x: 2, y: 11, color: "lime", score: 0, lives: 3, onLog: false }, // P1
+      { x: 7, y: 11, color: "cyan", score: 0, lives: 3, onLog: false }  // P2
+    ];
 
-    const map = [];
-    for (let y = 0; y < ROWS; y++) {
-      map[y] = [];
-      for (let x = 0; x < COLS; x++) {
-        if (y % 2 === 1 && x % 2 === 1) map[y][x] = "X"; // bloco indestrutível
-        else if (Math.random() < 0.3 && !(x < 2 && y < 2)) map[y][x] = "B"; // bloco destrutível
-        else map[y][x] = " ";
+    const keys = {};
+    const cars = [];
+    const logs = [];
+
+    let gameOver = false;
+
+    function createCar(row, speed, dir) {
+      cars.push({
+        x: dir === "right" ? -1 : COLS,
+        y: row,
+        speed,
+        dir
+      });
+    }
+
+    function createLog(row, speed, dir) {
+      logs.push({
+        x: dir === "right" ? -1 : COLS,
+        y: row,
+        speed,
+        dir
+      });
+    }
+
+    setInterval(() => {
+      createCar(Math.floor(Math.random() * 3) + 5, 0.1 + Math.random() * 0.2, Math.random() > 0.5 ? "right" : "left");
+    }, 1000);
+
+    setInterval(() => {
+      createLog(1, 0.05 + Math.random() * 0.1, "right");
+      createLog(2, 0.05 + Math.random() * 0.1, "left");
+    }, 1500);
+
+    function updateEntities(list) {
+      for (const obj of list) {
+        obj.x += obj.dir === "right" ? obj.speed : -obj.speed;
       }
     }
 
-    const player = { x: 0, y: 0 };
-    const bombs = [];
-
-    function drawTile(x, y, type) {
-      switch (type) {
-        case "X":
-          ctx.fillStyle = "#666";
-          break;
-        case "B":
-          ctx.fillStyle = "#a52a2a";
-          break;
-        default:
-          ctx.fillStyle = "#111";
-      }
-      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
-    }
-
-    function drawPlayer() {
-      ctx.fillStyle = "#0f0";
-      ctx.fillRect(player.x * TILE + 8, player.y * TILE + 8, TILE - 16, TILE - 16);
-    }
-
-    function drawBombs() {
-      ctx.fillStyle = "#ff0";
-      for (const bomb of bombs) {
-        ctx.beginPath();
-        ctx.arc(bomb.x * TILE + TILE / 2, bomb.y * TILE + TILE / 2, 10, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    function explodeBomb(bomb) {
-      const { x, y } = bomb;
-      const dirs = [
-        [0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]
-      ];
-
-      for (const [dx, dy] of dirs) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS) {
-          if (map[ny][nx] === "B") map[ny][nx] = " ";
+    function drawGrid() {
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          ctx.fillStyle = y === 0 ? "#064" : y <= 2 ? "#003366" : "#222";
+          ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+          ctx.strokeStyle = "#333";
+          ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
         }
       }
     }
 
-    function dropBomb() {
-      const exists = bombs.find(b => b.x === player.x && b.y === player.y);
-      if (!exists) {
-        const bomb = { x: player.x, y: player.y };
-        bombs.push(bomb);
-        setTimeout(() => {
-          explodeBomb(bomb);
-          bombs.splice(bombs.indexOf(bomb), 1);
-        }, 1500);
+    function drawCars() {
+      ctx.fillStyle = "red";
+      for (const car of cars) {
+        ctx.fillRect(car.x * TILE, car.y * TILE + 10, TILE, TILE - 20);
+      }
+    }
+
+    function drawLogs() {
+      ctx.fillStyle = "#8B4513";
+      for (const log of logs) {
+        ctx.fillRect(log.x * TILE, log.y * TILE + 10, TILE, TILE - 20);
+      }
+    }
+
+    function drawFrogs() {
+      for (const frog of frogs) {
+        ctx.fillStyle = frog.color;
+        ctx.fillRect(frog.x * TILE + 8, frog.y * TILE + 8, TILE - 16, TILE - 16);
+      }
+    }
+
+    function resetFrog(frog, initialX) {
+      frog.x = initialX;
+      frog.y = 11;
+      frog.onLog = false;
+    }
+
+    function updateScore() {
+      document.getElementById("score").textContent =
+        `Player 1: ${frogs[0].score} ❤️${frogs[0].lives} | Player 2: ${frogs[1].score} ❤️${frogs[1].lives}`;
+    }
+
+    function checkCarCollisions() {
+      for (const frog of frogs) {
+        for (const car of cars) {
+          if (
+            Math.floor(car.x) === frog.x &&
+            car.y === frog.y
+          ) {
+            frog.lives--;
+            resetFrog(frog, frog === frogs[0] ? 2 : 7);
+            updateScore();
+          }
+        }
+      }
+    }
+
+    function checkLogSupport() {
+      for (const frog of frogs) {
+        frog.onLog = false;
+        if (frog.y === 1 || frog.y === 2) {
+          for (const log of logs) {
+            if (Math.floor(log.x) === frog.x && log.y === frog.y) {
+              frog.onLog = true;
+              frog.x += log.dir === "right" ? log.speed : -log.speed;
+              break;
+            }
+          }
+
+          // Se está no rio e não está em cima de um tronco = perdeu vida
+          if (!frog.onLog) {
+            frog.lives--;
+            resetFrog(frog, frog === frogs[0] ? 2 : 7);
+            updateScore();
+          }
+        }
+      }
+    }
+
+    function checkWin() {
+      for (const frog of frogs) {
+        if (frog.y === 0) {
+          frog.score++;
+          resetFrog(frog, frog === frogs[0] ? 2 : 7);
+          updateScore();
+        }
+      }
+    }
+
+    function checkGameOver() {
+      if (frogs.some(f => f.lives <= 0)) {
+        gameOver = true;
+        const p1 = frogs[0], p2 = frogs[1];
+        let result = "Empate!";
+        if (p1.score > p2.score) result = "Player 1 VENCEU!";
+        else if (p2.score > p1.score) result = "Player 2 VENCEU!";
+        document.getElementById("gameOver").textContent = `🏁 FIM DE JOGO - ${result}`;
       }
     }
 
     document.addEventListener("keydown", (e) => {
-      let nx = player.x;
-      let ny = player.y;
-      if (e.key === "ArrowUp") ny--;
-      if (e.key === "ArrowDown") ny++;
-      if (e.key === "ArrowLeft") nx--;
-      if (e.key === "ArrowRight") nx++;
-      if (e.key === " ") dropBomb();
-
-      if (
-        nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS &&
-        map[ny][nx] === " "
-      ) {
-        player.x = nx;
-        player.y = ny;
-      }
+      keys[e.key.toLowerCase()] = true;
     });
 
-    function loop() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    document.addEventListener("keyup", (e) => {
+      keys[e.key.toLowerCase()] = false;
+    });
 
-      for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-          drawTile(x, y, map[y][x]);
-        }
-      }
+    function handleInput() {
+      // Player 1 - Setas
+      if (keys["arrowup"] && frogs[0].y > 0) { frogs[0].y--; keys["arrowup"] = false; }
+      if (keys["arrowdown"] && frogs[0].y < ROWS - 1) { frogs[0].y++; keys["arrowdown"] = false; }
+      if (keys["arrowleft"] && frogs[0].x > 0) { frogs[0].x--; keys["arrowleft"] = false; }
+      if (keys["arrowright"] && frogs[0].x < COLS - 1) { frogs[0].x++; keys["arrowright"] = false; }
 
-      drawBombs();
-      drawPlayer();
-
-      requestAnimationFrame(loop);
+      // Player 2 - WASD
+      if (keys["w"] && frogs[1].y > 0) { frogs[1].y--; keys["w"] = false; }
+      if (keys["s"] && frogs[1].y < ROWS - 1) { frogs[1].y++; keys["s"] = false; }
+      if (keys["a"] && frogs[1].x > 0) { frogs[1].x--; keys["a"] = false; }
+      if (keys["d"] && frogs[1].x < COLS - 1) { frogs[1].x++; keys["d"] = false; }
     }
 
-    loop();
+    function gameLoop() {
+      if (gameOver) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      handleInput();
+      drawLogs();
+      drawCars();
+      drawFrogs();
+      updateEntities(cars);
+      updateEntities(logs);
+      checkCarCollisions();
+      checkLogSupport();
+      checkWin();
+      checkGameOver();
+      requestAnimationFrame(gameLoop);
+    }
+
+    updateScore();
+    gameLoop();
   </script>
 </body>
 </html>
